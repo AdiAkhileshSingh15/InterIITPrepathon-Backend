@@ -119,7 +119,7 @@ func saveResultToFile(data [][]interface{}) error {
 	defer file.Close()
 
 	// write csv headers
-	_, err = file.WriteString("rise,type,rise_start,peaks_time,decay_end,peak_values,bg_for_this_peak,rise_rate\n")
+	_, err = file.WriteString("flare_type,approx_start,precise_start,peak,peak_val,rise_rate,background_level,decay\n")
 	if err != nil {
 		return fmt.Errorf("failed to write headers to result.csv: %w", err)
 	}

@@ -72,7 +72,7 @@ def decay_fit(x, A, alpha):
     return (x / abs(A)) ** (-alpha)
 
 
-def estimate_flare_start_points(rate, time, background, peak_time):
+def estimate_flare_precise_start(rate, time, background, peak_time):
     param, _ = curve_fit(
         poly_fit,
         rate,
@@ -105,11 +105,11 @@ def estimate_decay_end(rate, time, background, peak_time):
 
 def identify_flare(data_frame):
     (
-        flare_start_times,
+        flare_approx_start,
         flare_peak_times,
         flare_end_times,
         flare_rates,
-        flare_start_points,
+        flare_precise_start,
         flare_background_levels,
         flare_peak_values,
         flare_type,
@@ -118,7 +118,7 @@ def identify_flare(data_frame):
     lc_index = 0
     background_level = data_frame["RATE"][0]
 
-    while lc_index < (len(data_frame) - 4):
+    while lc_index + 4 < len(data_frame):
         if (
             (data_frame["RATE"][lc_index] < data_frame["RATE"][lc_index + 1])
             and (data_frame["RATE"][lc_index + 1] < data_frame["RATE"][lc_index + 2])
@@ -126,7 +126,7 @@ def identify_flare(data_frame):
             and (data_frame["RATE"][lc_index + 3] < data_frame["RATE"][lc_index + 4])
             and (data_frame["RATE"][lc_index + 4] / data_frame["RATE"][lc_index] > 1.03)
         ):
-            flare_start_times.append(data_frame["TIME"][lc_index])
+            flare_approx_start.append(data_frame["TIME"][lc_index])
             flare_rates.append(data_frame["RATE"][lc_index])
             next_index = lc_index + 5
 
@@ -161,7 +161,7 @@ def identify_flare(data_frame):
                     1,
                 )
                 poly = np.poly1d(curve)
-                flare_start_points.append(poly(background_level))
+                flare_precise_start.append(poly(background_level))
                 flare_end_times.append(
                     estimate_decay_end(
                         np.array(data_frame["RATE"][index_max : j + 6]),
@@ -177,7 +177,7 @@ def identify_flare(data_frame):
                     1,
                 )
                 poly = np.poly1d(curve)
-                flare_start_points.append(poly(background_level))
+                flare_precise_start.append(poly(background_level))
                 flare_end_times.append(
                     estimate_decay_end(
                         np.array(data_frame["RATE"][index_max : j + 6]),
@@ -194,14 +194,14 @@ def identify_flare(data_frame):
             lc_index += 1
 
     return [
-        flare_start_times,
         flare_type,
-        flare_start_points,
+        flare_approx_start,
+        flare_precise_start,
         flare_peak_times,
-        flare_end_times,
         flare_peak_values,
-        flare_background_levels,
         flare_rates,
+        flare_background_levels,
+        flare_end_times,
     ]
 
 
