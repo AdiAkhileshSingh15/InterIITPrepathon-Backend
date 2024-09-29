@@ -23,7 +23,6 @@ func main() {
 
 	r.Post("/upload", middlewares.FilePreparer(handlers.UploadFile))
 	r.Get("/result/download", handlers.DownloadFile)
-	r.Get("/result", handlers.ServeFile)
 
 	log.Println("Server running on port 3000")
 	if err := http.ListenAndServe(":3000", r); err != nil {
