@@ -15,6 +15,7 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
+	r.Use(middlewares.EnableCORS)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to Inter-IIT Prepathon Backend"))

@@ -85,7 +85,12 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse output from python script as json
-	var result [][]interface{}
+	type PythonOutput struct {
+		DetectedFlares [][]interface{}          `json:"detected_flares"`
+		LcData         []map[string]interface{} `json:"lc_data"`
+	}
+
+	var result PythonOutput
 	err = json.Unmarshal(output, &result)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to parse JSON from Python script: %v", err), http.StatusInternalServerError)
@@ -93,14 +98,20 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// save result to csv file
-	err = saveResultToFile(result)
+	err = saveResultToFile(result.DetectedFlares)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save result to CSV: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// send result as json response
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("File processed and result saved as result.csv."))
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(result)
+	if err != nil {
+		http.Error(w, "Failed to send result as JSON", http.StatusInternalServerError)
+		return
+	}
 }
 
 func saveResultToFile(data [][]interface{}) error {
@@ -119,14 +130,14 @@ func saveResultToFile(data [][]interface{}) error {
 	defer file.Close()
 
 	// write csv headers
-	_, err = file.WriteString("flare_type,approx_start,precise_start,peak,peak_val,rise_rate,background_level,decay\n")
+	_, err = file.WriteString("flare_type,start,precise_start,start_rate,peak,peak_rate,background_level,decay,decay_rate\n")
 	if err != nil {
 		return fmt.Errorf("failed to write headers to result.csv: %w", err)
 	}
 
 	// write the result data in csv format
 	for j := 0; j < len(data[0]); j++ {
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 9; i++ {
 			if i < len(data) {
 				switch data[i][j].(type) {
 				case float64:
@@ -134,7 +145,7 @@ func saveResultToFile(data [][]interface{}) error {
 				case string:
 					file.WriteString(fmt.Sprintf("%s", data[i][j]))
 				}
-				if i != 7 {
+				if i != 8 {
 					file.WriteString(",")
 				} else if j != len(data[0])-1 {
 					file.WriteString("\n")

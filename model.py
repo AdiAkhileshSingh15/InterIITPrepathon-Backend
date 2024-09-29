@@ -26,6 +26,9 @@ def load_file(file_path):
     if isinstance(data_frame["TIME"][0], str):
         data_frame["TIME"] = data_frame["TIME"].apply(to_MET)
 
+    # Normalize the time to start from 0
+    data_frame["TIME"] = data_frame["TIME"] - data_frame["TIME"].iloc[0]
+
     rebin_data = rebin_data_func(data_frame, 60)
     rebin_data["RATE"] = convolution.convolve(
         rebin_data["RATE"], convolution.Box1DKernel(10)
@@ -105,15 +108,16 @@ def estimate_decay_end(rate, time, background, peak_time):
 
 def identify_flare(data_frame):
     (
-        flare_approx_start,
-        flare_peak_times,
-        flare_end_times,
-        flare_rates,
-        flare_precise_start,
-        flare_background_levels,
-        flare_peak_values,
         flare_type,
-    ) = ([] for _ in range(8))
+        flare_start_times,
+        flare_precise_start,
+        flare_start_rates,
+        flare_peak_times,
+        flare_peak_rate,
+        flare_background_levels,
+        flare_end_times,
+        flare_end_rates,
+    ) = ([] for _ in range(9))
 
     lc_index = 0
     background_level = data_frame["RATE"][0]
@@ -126,8 +130,9 @@ def identify_flare(data_frame):
             and (data_frame["RATE"][lc_index + 3] < data_frame["RATE"][lc_index + 4])
             and (data_frame["RATE"][lc_index + 4] / data_frame["RATE"][lc_index] > 1.03)
         ):
-            flare_approx_start.append(data_frame["TIME"][lc_index])
-            flare_rates.append(data_frame["RATE"][lc_index])
+            # start values
+            flare_start_times.append(data_frame["TIME"][lc_index])
+            flare_start_rates.append(data_frame["RATE"][lc_index])
             next_index = lc_index + 5
 
             for j in range(lc_index + 4, len(data_frame) - 3):
@@ -147,7 +152,8 @@ def identify_flare(data_frame):
 
             peak_value, peak_time = get_peak_info(flare_range, lc_index + 4, data_frame)
 
-            flare_peak_values.append(peak_value)
+            # peak values
+            flare_peak_rate.append(peak_value)
             flare_peak_times.append(peak_time)
             flare_background_levels.append(background_level)
 
@@ -162,14 +168,17 @@ def identify_flare(data_frame):
                 )
                 poly = np.poly1d(curve)
                 flare_precise_start.append(poly(background_level))
-                flare_end_times.append(
-                    estimate_decay_end(
-                        np.array(data_frame["RATE"][index_max : j + 6]),
-                        np.array(data_frame["TIME"][index_max : j + 6]),
-                        background_level,
-                        data_frame["TIME"][index_max],
-                    )
+                flare_end_time = estimate_decay_end(
+                    np.array(data_frame["RATE"][index_max : j + 6]),
+                    np.array(data_frame["TIME"][index_max : j + 6]),
+                    background_level,
+                    data_frame["TIME"][index_max],
                 )
+                flare_end_rate = get_flare_end_rate(flare_end_time, data_frame)
+
+                # end values
+                flare_end_times.append(flare_end_time)
+                flare_end_rates.append(flare_end_rate)
             except:
                 curve = np.polyfit(
                     np.array(data_frame["RATE"][lc_index:index_max]),
@@ -178,14 +187,17 @@ def identify_flare(data_frame):
                 )
                 poly = np.poly1d(curve)
                 flare_precise_start.append(poly(background_level))
-                flare_end_times.append(
-                    estimate_decay_end(
-                        np.array(data_frame["RATE"][index_max : j + 6]),
-                        np.array(data_frame["TIME"][index_max : j + 6]),
-                        background_level,
-                        data_frame["TIME"][index_max],
-                    )
+                flare_end_time = estimate_decay_end(
+                    np.array(data_frame["RATE"][index_max : j + 6]),
+                    np.array(data_frame["TIME"][index_max : j + 6]),
+                    background_level,
+                    data_frame["TIME"][index_max],
                 )
+                flare_end_rate = get_flare_end_rate(flare_end_time, data_frame)
+
+                # end values
+                flare_end_times.append(flare_end_time)
+                flare_end_rates.append(flare_end_rate)
 
             flare_type.append(classify_flare(peak_value, background_level, flare_range))
 
@@ -193,16 +205,42 @@ def identify_flare(data_frame):
         else:
             lc_index += 1
 
+    lc_data = assign_flare_status(
+        data_frame, flare_peak_times, flare_start_times, flare_end_times
+    )
+
     return [
         flare_type,
-        flare_approx_start,
+        flare_start_times,
         flare_precise_start,
+        flare_start_rates,
         flare_peak_times,
-        flare_peak_values,
-        flare_rates,
-        flare_background_levels,
+        flare_peak_rate,
         flare_end_times,
-    ]
+        flare_end_rates,
+        flare_background_levels,
+    ], lc_data
+
+
+def assign_flare_status(data_frame, peak_times, start_times, end_times):
+    lcdata = pd.DataFrame(
+        {"time": data_frame["TIME"], "rate": data_frame["RATE"]}, index=None
+    )
+    lcdata["status"] = lcdata["time"].apply(
+        lambda x: (
+            "Peak"
+            if x in peak_times
+            else (
+                "Start" if x in start_times else ("End" if x in end_times else "Normal")
+            )
+        )
+    )
+    return lcdata
+
+
+def get_flare_end_rate(flare_end_time, data_frame):
+    end_index = np.abs(data_frame["TIME"] - flare_end_time).idxmin()
+    return data_frame["RATE"][end_index]
 
 
 def get_peak_info(flare_range, offset, data_frame):
@@ -251,6 +289,10 @@ def classify_flare(peak_value, background, flare_range):
 
 if __name__ == "__main__":
     data_file = input()
-    detected_flares = load_file(data_file)
-    flare_data = json.dumps(detected_flares, separators=(",", ":"))
+    detected_flares, lc_data = load_file(data_file)
+    output = {
+        "detected_flares": detected_flares,
+        "lc_data": lc_data.to_dict(orient="records"),
+    }
+    flare_data = json.dumps(output, separators=(",", ":"))
     print(flare_data)
