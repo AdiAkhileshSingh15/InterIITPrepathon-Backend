@@ -22,10 +22,9 @@ func main() {
 	})
 
 	r.Post("/upload", middlewares.FilePreparer(handlers.UploadFile))
-	r.Get("/result/download", handlers.DownloadFile)
 
-	log.Println("Server running on port 3000")
-	if err := http.ListenAndServe(":3000", r); err != nil {
+	log.Println("Server running on port 8000")
+	if err := http.ListenAndServe(":8000", r); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
 }
