@@ -3,12 +3,14 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/adiakhileshsingh15/interiitprepathon-backend/handlers"
 	"github.com/adiakhileshsingh15/interiitprepathon-backend/middlewares"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -23,8 +25,16 @@ func main() {
 
 	r.Post("/upload", middlewares.FilePreparer(handlers.UploadFile))
 
-	log.Println("Server running on port 8000")
-	if err := http.ListenAndServe(":8000", r); err != nil {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Println("Server running on port :", port)
+	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
 }
