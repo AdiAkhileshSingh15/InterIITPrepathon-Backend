@@ -1,6 +1,6 @@
-astropy==5.0.2
-numpy==1.22.1
-pandas==1.4.0
-scipy==1.8.0
+astropy==6.1.4
+numpy==2.1.1
+pandas==2.2.3
+scipy==1.14.1
 datetime==5.5
-setuptools==58.2.0
+setuptools==75.1.0
