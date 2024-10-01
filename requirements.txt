@@ -3,4 +3,4 @@ numpy==1.22.1
 pandas==1.4.0
 scipy==1.8.0
 datetime==5.5
-setuptools==68.2.2
+setuptools==58.2.0
