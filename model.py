@@ -1,10 +1,3 @@
-import subprocess
-
-subprocess.check_call(["python", "-m", "pip", "install", "numpy"])
-subprocess.check_call(["python", "-m", "pip", "install", "pandas"])
-subprocess.check_call(["python", "-m", "pip", "install", "datetime"])
-subprocess.check_call(["python", "-m", "pip", "install", "scipy"])
-subprocess.check_call(["python", "-m", "pip", "install", "astropy"])
 import numpy as np
 import pandas as pd
 from datetime import datetime
