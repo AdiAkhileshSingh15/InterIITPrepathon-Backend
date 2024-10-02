@@ -59,6 +59,13 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create stdout pipe for python command", http.StatusInternalServerError)
 		return
 	}
+
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		http.Error(w, "Failed to create stderr pipe for python command", http.StatusInternalServerError)
+		return
+	}
+
 	if err := cmd.Start(); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to start python script: %v", err), http.StatusInternalServerError)
 		return
@@ -78,12 +85,18 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// wait for model to run
-	if err := cmd.Wait(); err != nil {
-		http.Error(w, fmt.Sprintf("Python script finished with error: %v", err), http.StatusInternalServerError)
+	stderr, err := io.ReadAll(stderrPipe)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read stderr from python script: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// wait for model to run
+	if err := cmd.Wait(); err != nil {
+		errorMessage := fmt.Sprintf("Python script finished with error: %v\nstderr: %s", err, string(stderr))
+		http.Error(w, errorMessage, http.StatusInternalServerError)
+		return
+	}
 	// parse output from python script as json
 	type PythonOutput struct {
 		DetectedFlares [][]interface{}          `json:"detected_flares"`
