@@ -47,8 +47,15 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cmd := exec.Command("pip3", "install", "-r", "./requirements.txt")
+	err = cmd.Run()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to install Python packages: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// call python script for our model
-	cmd := exec.Command("python3", "./model.py")
+	cmd = exec.Command("python3", "./model.py")
 	cmdInput, err := cmd.StdinPipe()
 	if err != nil {
 		http.Error(w, "Failed to create stdin pipe for python command", http.StatusInternalServerError)
