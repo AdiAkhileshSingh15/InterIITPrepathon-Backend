@@ -1,3 +1,4 @@
 interiitprepathon-backend
 .env
 /env
+node_modules
